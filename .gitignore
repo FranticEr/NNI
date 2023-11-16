@@ -2,10 +2,18 @@ output
 output\
 \output
 \output\
+.output
+.output\
+.\output
+.\output\
 notebook\BandPowerDetect\AutogluonModels
 notebook\BandPowerDetect\AutogluonModels\
 \notebook\BandPowerDetect\AutogluonModels
 \notebook\BandPowerDetect\AutogluonModels\
+.notebook\BandPowerDetect\AutogluonModels
+.notebook\BandPowerDetect\AutogluonModels\
+.\notebook\BandPowerDetect\AutogluonModels
+.\notebook\BandPowerDetect\AutogluonModels\
 
 
 
