@@ -136,6 +136,53 @@ def MakeNonCrossTable(psg_folder,kss_file_path,N_FFT=15*512):
     print(df)
     return df
     pass
+
+def MakeWindowsTable(psg_folder,kss_file_path,N_FFT=15*512,HOP_LEN=15*512,NonCross=False):
+    '''
+    获取实验数据：实验人员ID,实验次序，每次反应测试的间隔起始时间、间隔终结时间
+    输出pandas.Dataframe,columns=["ID","LEVEL","KSS","START", "END"]
+    输入：
+        psg_folder：edf文件夹
+        kss_file_path：kss评价表文件
+        N_FFT=15*512：窗口时长(512Hz)
+        HOP_LEN：步长
+        NoCross：窗口间是否交叉(NonCross的控制优先级大于HOP_LEN)
+    '''
+    if NonCross:
+        HOP_LEN=N_FFT
+    df=pd.DataFrame(columns=["ID","LEVEL","KSS","START", "END"])
+    edfFilenameList=os.listdir(psg_folder)
+    for edfFilename in edfFilenameList:
+        dict={}
+        ID_LEVE,Type=edfFilename.split('.')
+        ID,LEVEL=ID_LEVE.split('-')
+        try:
+            KSS_table=pd.read_csv(kss_file_path,sep=" ",header=None)
+            KSS=KSS_table.iloc[int(ID)-1][int(LEVEL)-1]
+        except ValueError:
+            continue
+        edfFile=mne.io.read_raw_edf(os.path.join(psg_folder,edfFilename),verbose=False)      
+
+        startIndex=torch.range(0,((len(edfFile)-N_FFT)//N_FFT))*N_FFT
+        startTime=startIndex/512
+        endIndex=startIndex+HOP_LEN
+        endTime=endIndex/512
+        ID=torch.ones_like(startTime)*int(ID)
+        LEVEL=torch.ones_like(startTime)*int(LEVEL)
+        KSS=torch.ones_like(startTime)*int(KSS)
+        dict['ID']=ID
+        dict['LEVEL']=LEVEL
+        dict["KSS"]=KSS
+        dict["START"]=startTime
+        dict["END"]=endTime
+        tempdf=pd.DataFrame(dict)
+        print(tempdf.shape)
+        df=pd.concat([df,tempdf],ignore_index=True)
+    print(df)
+    return df
+    pass
+
+
 def MakePeriodTable(pvt_rt_path,kss_file_path):
     '''
     获取实验数据：实验人员ID,实验次序，每次反应测试的间隔起始时间、间隔终结时间和反应时长
@@ -190,17 +237,7 @@ def MakePeriodTable(pvt_rt_path,kss_file_path):
     return df
 
 ##
-def getBandPower(infoTableFilePaht,kssFilePath,psdFolderPath,bandaPowerFilePath,N_FFT=15*512,HOP_LEN=5*512):
-    '''
-    OutputFolderDict['info_file']
-    DatasetFolderDict['kss_file']
-    DatasetFolderDict['psg_folder']
-    OutputFolderDict['bandpower_file']
-    '''
-    # infoTableFilePaht=
-    # kssFilePath=
-    # psdFolderPath=
-    # bandaPowerFilePath=
+def getBandPowerTable(kssFilePath,psdFolderPath,bandaPowerFilePath,N_FFT=15*512,HOP_LEN=5*512):
 
     WaveDict={
     'delta':{'LOW':1,"HIGH":3},
@@ -209,11 +246,60 @@ def getBandPower(infoTableFilePaht,kssFilePath,psdFolderPath,bandaPowerFilePath,
     'beta':{'LOW':12,"HIGH":29},
     'gamma':{'LOW':30,"HIGH":100},
     }
-    infoTable=pd.read_csv(infoTableFilePaht)
     kssTable=pd.read_csv(kssFilePath,sep=' ',header=None)
     for filename in os.listdir(psdFolderPath):
     #读数据
         FiltedEdf=mne.io.read_raw_edf(os.path.join(psdFolderPath,filename))
+        FiltedEdf=FiltedEdf.pick(['Fz', 'Cz', 'C3', 'C4', 'Pz'])
+        #提取文件名中的信息
+        filename,_=filename.split(".")
+        ID,LEVEL=filename.split('-')
+        ID=int(ID)
+        LEVEL=int(LEVEL)
+        #取KSS评分
+        KSS=int(kssTable.iloc[int(ID)-1][int(LEVEL)-1])
+
+        ##channel_loop
+        PowerDict={}
+        for ch_name in FiltedEdf.info['ch_names']:
+            y=FiltedEdf[ch_name][0][0].T
+            sfft,freq=SequenceFFT(y,512,N_FFT,HOP_LEN)
+            ##band_loop
+            temp=[] 
+            for bandName,band in list(WaveDict.items()):
+                # print(bandName,band)
+                idx_band=np.logical_and(WaveDict[bandName]['LOW']<=freq,freq<=WaveDict[bandName]['HIGH'])
+                if bandName=='gamma':
+                    idx_band=np.logical_and(idx_band, freq != 50)
+                    pass
+                bandPower=np.sum(abs(sfft[idx_band,:])**2*2,axis=0)
+                # print(bandPower.shape)
+                PowerDict[ch_name+'_'+bandName]=bandPower
+                temp.append(bandPower)
+                
+                if  bandName==list(WaveDict.keys())[-1]:
+                    allPower=np.sum(temp,axis=0)
+                    # print(allPower.shape)               
+        PowerDict["ID"]=np.ones_like(bandPower)*ID  
+        PowerDict["LEVEL"]=np.ones_like(bandPower)*LEVEL
+        PowerDict["KSS"]=np.ones_like(bandPower)*KSS     
+        
+       
+
+
+
+def getBandPower(DatasetFolderDict,OutputFolderDict,N_FFT=15*512,HOP_LEN=5*512):
+    WaveDict={
+    'delta':{'LOW':1,"HIGH":3},
+    'theta':{'LOW':4,"HIGH":7},
+    'alpha':{'LOW':8,"HIGH":11},
+    'beta':{'LOW':12,"HIGH":29},
+    'gamma':{'LOW':30,"HIGH":100},
+    }
+    kssTable=pd.read_csv(DatasetFolderDict['kss_file'],sep=' ',header=None)
+    for filename in os.listdir(DatasetFolderDict['psg_folder']):
+    #读数据
+        FiltedEdf=mne.io.read_raw_edf(os.path.join(DatasetFolderDict['psg_folder'],filename))
         FiltedEdf=FiltedEdf.pick(['Fz', 'Cz', 'C3', 'C4', 'Pz'])
         #提取文件名中的信息
         filename,_=filename.split(".")
@@ -249,10 +335,10 @@ def getBandPower(infoTableFilePaht,kssFilePath,psdFolderPath,bandaPowerFilePath,
         PowerDict["KSS"]=np.ones_like(bandPower)*KSS     
         
         rawPowerTable=pd.DataFrame(PowerDict)
-        rawPowerTable.to_csv(bandaPowerFilePath, mode='a', header=not os.path.exists(bandaPowerFilePath), index=False)
+        rawPowerTable.to_csv(OutputFolderDict['bandpower_file'], mode='a', header=not os.path.exists(OutputFolderDict['bandpower_file']), index=False)
+
 
 def getUniformBandPower(bandPowerTablePath,uniformBandPowerTablePath):
-    
     rawPowerTable=pd.read_csv(bandPowerTablePath)
     ch_names=['Fz', 'Cz', 'C3', 'C4', 'Pz']
 
@@ -263,10 +349,9 @@ def getUniformBandPower(bandPowerTablePath,uniformBandPowerTablePath):
         merged_df = pd.concat((merged_df,rawPowerTable[["ID","LEVEL","KSS"]]),axis=1)
         merged_df.to_csv(uniformBandPowerTablePath)
     return merged_df
-    pass     
-        
+    pass   
 
-    
+
 def getSFFT(psgFolder,outputFolder,N_FFT=15*512,HOP_LEN=5*512):
     '''
     

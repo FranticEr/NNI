@@ -23,8 +23,10 @@ def getOutPath(output_root="/mount/mount_project/output_data/"):
     EEG_table="EEG_table.csv"
     ECG_table="ECG_table.csv"
 
+    Frame_Folder='video_frames'
+
     noncross='noncross.csv'
-    noncross_file_path=os.path.join(data_root,noncross)
+    noncross_file_path=os.path.join(output_root,noncross)
 
     output_path_dict={
         "info_file":os.path.join(output_root,info_filename),
@@ -38,7 +40,9 @@ def getOutPath(output_root="/mount/mount_project/output_data/"):
 
         'bandpower_file':os.path.join(output_root,bandPowerFilename),
         'uniformbandpower_file':os.path.join(output_root,uniformBandPowerFilename),
-        'noncross_file':noncross_file_path
+        'noncross_file':noncross_file_path,
+
+        'video_frames':os.path.join(output_root,Frame_Folder),
     }    
     return output_path_dict
 

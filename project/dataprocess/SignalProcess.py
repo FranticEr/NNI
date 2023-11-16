@@ -15,6 +15,10 @@ def getCWTImage(data,t,sfreq,totalscal = 512,sampling_rate=512,wavename = "cgau8
         sampling_rate，sfreq:采样频率
         totalscal:最大时间尺度
         wavename：小波函数名
+    返回 :
+        t,时间轴
+        frequencies:频率轴
+        log_cwtmatr_uniform:能量系数
 
     https://blog.csdn.net/weixin_46713695/article/details/127234673
     '''
@@ -153,7 +157,7 @@ def VerifyAlgorithm(min=0,max=100):
 
 
 
-def SequenceFFT(y,N_FFT=15*512,HOP_LENGTH=5*512):
+def SequenceFFT(y,sfreq,N_FFT=15*512,HOP_LENGTH=5*512):
     '''
     计算一段长数据的FFT
     输入：
@@ -171,7 +175,7 @@ def SequenceFFT(y,N_FFT=15*512,HOP_LENGTH=5*512):
     idxs=torch.stack((startIndex,endIndex),dim=1).int()
     stft=[]
     for idx in idxs :
-        fft_result,freq=FFTParse(y[idx[0]:idx[1]],512)
+        fft_result,freq=FFTParse(y[idx[0]:idx[1]],sfreq)
         stft.append(fft_result)       
     stft=np.array(stft).T
     return stft,freq
