@@ -368,3 +368,32 @@ def getSFFT(psgFolder,outputFolder,N_FFT=15*512,HOP_LEN=5*512):
             sfft,freq=SequenceFFT(y,N_FFT,HOP_LEN)
             
     pass
+
+from .FacePrrocess import getFaceFrames
+
+def getLevelFacesFolder(videoFolder,levelFacesFolder):
+    # data_root=r"D:\dataset\driver_dataset\DROZY\DROZY"
+    # data_dict=FolderTree.getDataPath(data_root=datasetFolder)
+    # videoFolder=data_dict['videos_folder']
+    videoFilenameList=os.listdir(videoFolder)
+    for videoName in videoFilenameList:
+        ID_LEVEL,type=videoName.split(".")
+        ID,LEVEL=ID_LEVEL.split('-')    
+        saveFolder=os.path.join(levelFacesFolder,f'{LEVEL}',f'{ID}')
+        saveFileName=f'{ID}'
+        videoFullName=os.path.join(videoFolder,videoName)
+        getFaceFrames(saveFolder, saveFileName, videoFullName)
+
+def getKSSFacesFolder(videoFolder,levelFacesFolder,KSS_table):
+    # data_root=r"D:\dataset\driver_dataset\DROZY\DROZY"
+    # data_dict=FolderTree.getDataPath(data_root=datasetFolder)
+    # videoFolder=data_dict['videos_folder']
+    videoFilenameList=os.listdir(videoFolder)
+    for videoName in videoFilenameList:
+        ID_LEVEL,type=videoName.split(".")
+        ID,LEVEL=ID_LEVEL.split('-') 
+        KSS=KSS_table.iloc[int(ID)-1][int(LEVEL)-1]
+        saveFolder=os.path.join(levelFacesFolder,f'{KSS}',f'{ID}')
+        saveFileName=f'{ID}'
+        videoFullName=os.path.join(videoFolder,videoName)
+        getFaceFrames(saveFolder, saveFileName, videoFullName)
