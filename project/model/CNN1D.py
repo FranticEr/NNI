@@ -91,4 +91,3 @@ class simple_cnn1d(nn.Module):
         x=self.classfier_layer(x)
         return x
 
-    

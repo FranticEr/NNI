@@ -9,7 +9,7 @@ def getFaceImage(image:str|np.ndarray):
     # 加载图像
     if isinstance(image,str):
         image = cv2.imread(image)
-        print("path")
+        # print("path")
     # 使用Face Detection模块
     with mp_face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5) as face_detection:
         results = face_detection.process(image)
@@ -62,4 +62,25 @@ def getFaceFrames(saveFolder, saveFileName, videoFullName,step=4):
 #     videoFullName=os.path.join(videoFolder,videoName)
 #     getFaceFrames(saveFolder, saveFileName, videoFullName)
 
+def getFrames(saveFolder, saveFileName, videoFullName,step=4):
+    vc=cv2.VideoCapture(videoFullName)
+    fps = vc.get(cv2.CAP_PROP_FPS)
+    timeF=step*fps
+    if not os.path.exists(saveFolder):
+        os.makedirs(saveFolder)
+    if vc.isOpened():
+        rval,frame=vc.read()  
+    c=1
+    while rval:
+        try:
+            # print(c)
+            rval,frame=vc.read()
+            if (c%timeF==0):
+                cv2.imwrite(os.path.join(saveFolder,saveFileName+f'_{str(c)}.jpg'),frame)
+            c=c+1
+        except Exception as e:
+            print("Exception:",e)
+    vc.release()
 
+
+    

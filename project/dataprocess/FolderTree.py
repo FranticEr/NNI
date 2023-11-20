@@ -31,8 +31,15 @@ def getOutPath(output_root="/mount/mount_project/output_data/"):
     output_path_dict={
         "info_file":os.path.join(output_root,info_filename),
         "filted_folder":os.path.join(output_root,filted_path),
-        "nomalfilted_folder":os.path.join(output_root,nomalfilted_path),
+        "EEG_filted_folder":os.path.join(output_root,filted_path,'EEG'),
+        "ECG_filted_folder":os.path.join(output_root,filted_path,'ECG'),
+
         "uniformfilted_folder":os.path.join(output_root,uniformfilted_path),
+        'EEG_uniformfilted_folder':os.path.join(output_root,filted_path,'EEG'),
+        'ECG_uniformfilted_folder':os.path.join(output_root,filted_path,'ECG') ,       
+        
+        "nomalfilted_folder":os.path.join(output_root,nomalfilted_path),
+
         "cwt_folder":os.path.join(output_root,cwt_path),
 
         "EEG_table_file":os.path.join(output_root,EEG_table),
@@ -41,9 +48,14 @@ def getOutPath(output_root="/mount/mount_project/output_data/"):
         'bandpower_file':os.path.join(output_root,bandPowerFilename),
         'uniformbandpower_file':os.path.join(output_root,uniformBandPowerFilename),
         'noncross_file':noncross_file_path,
+        'windowsTable':os.path.join(output_root,'windowsTable.csv'),
 
-        'video_frames':os.path.join(output_root,Frame_Folder),
-    }    
+        'video_frames_folder':os.path.join(output_root,Frame_Folder),
+        'level_frames_folder':os.path.join(output_root,Frame_Folder,'level_frames'),
+        'kss_frames_folder':os.path.join(output_root,Frame_Folder,'kss_frames'),
+        'face_level_frames_folder':os.path.join(output_root,Frame_Folder,'face_level_frames'),
+        'face_kss_frames_folder':os.path.join(output_root,Frame_Folder,'face_kss_frames'),
+    }   
     return output_path_dict
 
 def getDataPath(data_root="/mount/mount_project/output_data/"):
@@ -88,7 +100,6 @@ def checkFolderTree(dataRoot,outRoot):
         print(datasetDict[key],os.path.exists(datasetDict[key]))
     print("Check Output Path")
     for key in outPathDict.keys():
-        
         if ( key.split('_')[-1]=='folder') and (not os.path.exists(outPathDict[key])):
             os.makedirs(outPathDict[key])
         print(outPathDict[key],os.path.exists(outPathDict[key]))

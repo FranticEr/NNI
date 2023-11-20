@@ -71,7 +71,37 @@ def Uniform(filtedFolder,uniformFiltedFolder):
 
             # pd.DataFrame(EEG_channel_dict).to_sql(f"{name}",conn)
 
-
+## 滤波后归一化
+def getEEGUniform(filtedFolder,uniformFiltedFolder):
+    '''
+    滤波后归一化
+    输入文件是滤波后的文件（没有归一化）
+    '''
+    filted_path=filtedFolder#滤波后文件夹
+    psg_uniformfilted=uniformFiltedFolder#EEG滤波后文件夹
+    # conn=sqlite3.connect(os.path.join(psg_uniformfilted,"EEG.db3"))
+    filed_filename_list=os.listdir(filted_path)#滤波后文件夹内的文件
+    for filted_file_name in filed_filename_list:        
+        name,_=filted_file_name.split(".")
+        Id,LEVEL=name.split("-")
+        EEG_filted_file=mne.io.read_raw_fif(os.path.join(filted_path,filted_file_name))
+        EEG_channel_dict={}
+        ##channel_loop
+        for channel_name in EEG_filted_file.info["ch_names"]:
+            #归一化
+            minS=min(EEG_filted_file[channel_name][0][0])
+            maxS=max(EEG_filted_file[channel_name][0][0])
+            EEG_channel_dict[channel_name]=(EEG_filted_file[channel_name][0][0]-minS)/(maxS-minS)
+        info=mne.create_info(ch_names=EEG_filted_file.info["ch_names"],ch_types=["eeg"] * 5,sfreq=EEG_filted_file.info["sfreq"])
+        info.set_montage("standard_1020")
+        #'Fz', 'Cz', 'C3', 'C4', 'Pz'
+        data=[]
+        for key in EEG_channel_dict.keys():
+            
+            data.append(EEG_channel_dict[key])
+        data=np.array(data)
+        raw = mne.io.RawArray(data, info)
+        raw.save(os.path.join(psg_uniformfilted,filted_file_name),overwrite=True)
 
 ##滤波
 def getFilteddFif(psgFolder,outputFolder):
@@ -81,20 +111,16 @@ def getFilteddFif(psgFolder,outputFolder):
     PsgPath=psgFolder
     PsgFileList=os.listdir(PsgPath)
     for edf_file_name in PsgFileList:
-        
         name,_=edf_file_name.split(".")
         RawEdfFile=mne.io .read_raw_edf(os.path.join(PsgPath,edf_file_name))
-
         EEGRaw=RawEdfFile.copy().load_data().pick_channels(['Fz', 'Cz', 'C3', 'C4', 'Pz']).filter(0.1,40)
+        EEGName=os.path.join(outputFolder,name+".fif") 
+        EEGRaw.save(EEGName,overwrite=True)
         #EEGRaw=EEGRaw.set_montage(montage=mne.channels.get_builtin_montages()[1],on_missing="ignore")
 
-        ECGRaw=RawEdfFile.copy().load_data().pick_channels(["ECG"]).filter(0.1,6)
-        #ECGRaw=ECGRaw.set_montage(montage=mne.channels.get_builtin_montages()[1],on_missing="ignore")
-
-        EEGName=os.path.join(outputFolder,name+"-EEG.fif")
-        ECGName=os.path.join(outputFolder,name+"-ECG.fif")
-
-        EEGRaw.save(EEGName,overwrite=True)
+        # ECGRaw=RawEdfFile.copy().load_data().pick_channels(["ECG"]).filter(0.1,6)
+        #ECGRaw=ECGRaw.set_montage(montage=mne.channels.get_builtin_montages()[1],on_missing="ignore")   
+        # ECGName=os.path.join(outputFolder,name+"-ECG.fif")
     pass
 
 
@@ -131,9 +157,9 @@ def MakeNonCrossTable(psg_folder,kss_file_path,N_FFT=15*512):
         dict["START"]=startTime
         dict["END"]=endTime
         tempdf=pd.DataFrame(dict)
-        print(tempdf.shape)
+        # print(tempdf.shape)
         df=pd.concat([df,tempdf],ignore_index=True)
-    print(df)
+    # print(df)
     return df
     pass
 
@@ -147,6 +173,8 @@ def MakeWindowsTable(psg_folder,kss_file_path,N_FFT=15*512,HOP_LEN=15*512,NonCro
         N_FFT=15*512：窗口时长(512Hz)
         HOP_LEN：步长
         NoCross：窗口间是否交叉(NonCross的控制优先级大于HOP_LEN)
+    输出：
+        时间窗口列表
     '''
     if NonCross:
         HOP_LEN=N_FFT
@@ -176,9 +204,9 @@ def MakeWindowsTable(psg_folder,kss_file_path,N_FFT=15*512,HOP_LEN=15*512,NonCro
         dict["START"]=startTime
         dict["END"]=endTime
         tempdf=pd.DataFrame(dict)
-        print(tempdf.shape)
+        # print(tempdf.shape)
         df=pd.concat([df,tempdf],ignore_index=True)
-    print(df)
+    # print(df)
     return df
     pass
 
@@ -237,7 +265,7 @@ def MakePeriodTable(pvt_rt_path,kss_file_path):
     return df
 
 ##
-def getBandPowerTable(kssFilePath,psdFolderPath,bandaPowerFilePath,N_FFT=15*512,HOP_LEN=5*512):
+def getBandPowerTable(kssFilePath,psdFolderPath,N_FFT=15*512,HOP_LEN=5*512):
 
     WaveDict={
     'delta':{'LOW':1,"HIGH":3},
@@ -247,6 +275,7 @@ def getBandPowerTable(kssFilePath,psdFolderPath,bandaPowerFilePath,N_FFT=15*512,
     'gamma':{'LOW':30,"HIGH":100},
     }
     kssTable=pd.read_csv(kssFilePath,sep=' ',header=None)
+    Table=pd.DataFrame()
     for filename in os.listdir(psdFolderPath):
     #读数据
         FiltedEdf=mne.io.read_raw_edf(os.path.join(psdFolderPath,filename))
@@ -258,7 +287,6 @@ def getBandPowerTable(kssFilePath,psdFolderPath,bandaPowerFilePath,N_FFT=15*512,
         LEVEL=int(LEVEL)
         #取KSS评分
         KSS=int(kssTable.iloc[int(ID)-1][int(LEVEL)-1])
-
         ##channel_loop
         PowerDict={}
         for ch_name in FiltedEdf.info['ch_names']:
@@ -276,16 +304,14 @@ def getBandPowerTable(kssFilePath,psdFolderPath,bandaPowerFilePath,N_FFT=15*512,
                 # print(bandPower.shape)
                 PowerDict[ch_name+'_'+bandName]=bandPower
                 temp.append(bandPower)
-                
                 if  bandName==list(WaveDict.keys())[-1]:
-                    allPower=np.sum(temp,axis=0)
-                    # print(allPower.shape)               
+                    allPower=np.sum(temp,axis=0)              
         PowerDict["ID"]=np.ones_like(bandPower)*ID  
         PowerDict["LEVEL"]=np.ones_like(bandPower)*LEVEL
         PowerDict["KSS"]=np.ones_like(bandPower)*KSS     
-        
-       
-
+        rawPowerTable=pd.DataFrame(PowerDict)
+        Table=pd.concat([Table,rawPowerTable],ignore_index=True)
+    return Table
 
 
 def getBandPower(DatasetFolderDict,OutputFolderDict,N_FFT=15*512,HOP_LEN=5*512):
@@ -299,20 +325,24 @@ def getBandPower(DatasetFolderDict,OutputFolderDict,N_FFT=15*512,HOP_LEN=5*512):
     kssTable=pd.read_csv(DatasetFolderDict['kss_file'],sep=' ',header=None)
     for filename in os.listdir(DatasetFolderDict['psg_folder']):
     #读数据
-        FiltedEdf=mne.io.read_raw_edf(os.path.join(DatasetFolderDict['psg_folder'],filename))
-        FiltedEdf=FiltedEdf.pick(['Fz', 'Cz', 'C3', 'C4', 'Pz'])
+        edfFile=mne.io.read_raw_edf(os.path.join(DatasetFolderDict['psg_folder'],filename))
+        edfFile=edfFile.pick(['Fz', 'Cz', 'C3', 'C4', 'Pz'])
         #提取文件名中的信息
         filename,_=filename.split(".")
         ID,LEVEL=filename.split('-')
         ID=int(ID)
         LEVEL=int(LEVEL)
         #取KSS评分
-        KSS=int(kssTable.iloc[int(ID)-1][int(LEVEL)-1])
+        try:
+            KSS=kssTable.iloc[int(ID)-1][int(LEVEL)-1]
+        except ValueError:
+            continue
+
 
         ##channel_loop
         PowerDict={}
-        for ch_name in FiltedEdf.info['ch_names']:
-            y=FiltedEdf[ch_name][0][0].T
+        for ch_name in edfFile.info['ch_names']:
+            y=edfFile[ch_name][0][0].T
             sfft,freq=SequenceFFT(y,N_FFT,HOP_LEN)
             ##band_loop
             temp=[] 
@@ -341,21 +371,26 @@ def getBandPower(DatasetFolderDict,OutputFolderDict,N_FFT=15*512,HOP_LEN=5*512):
 def getUniformBandPower(bandPowerTablePath,uniformBandPowerTablePath):
     rawPowerTable=pd.read_csv(bandPowerTablePath)
     ch_names=['Fz', 'Cz', 'C3', 'C4', 'Pz']
-
     table=[]
     for ch_name in  ch_names:
         table.append(rawPowerTable.filter(like=ch_name).div(rawPowerTable.filter(like=ch_name).sum(axis=1),axis=0))
         merged_df = pd.concat(table, axis=1)
         merged_df = pd.concat((merged_df,rawPowerTable[["ID","LEVEL","KSS"]]),axis=1)
         merged_df.to_csv(uniformBandPowerTablePath)
-    return merged_df
-    pass   
+    return merged_df  
 
-
+def getUniformBandPowerTable(bandPowerTable):
+    rawPowerTable=bandPowerTable
+    ch_names=['Fz', 'Cz', 'C3', 'C4', 'Pz']
+    table=[]
+    for ch_name in  ch_names:
+        table.append(rawPowerTable.filter(like=ch_name).div(rawPowerTable.filter(like=ch_name).sum(axis=1),axis=0))
+        merged_df = pd.concat(table, axis=1)
+        merged_df = pd.concat((merged_df,rawPowerTable[["ID","LEVEL","KSS"]]),axis=1)
+        
+    return merged_df  
 def getSFFT(psgFolder,outputFolder,N_FFT=15*512,HOP_LEN=5*512):
-    '''
-    
-    '''
+
     PsgPath=psgFolder
     PsgFileList=os.listdir(PsgPath)
     for edf_file_name in PsgFileList:   
@@ -369,7 +404,7 @@ def getSFFT(psgFolder,outputFolder,N_FFT=15*512,HOP_LEN=5*512):
             
     pass
 
-from .FacePrrocess import getFaceFrames
+from .FacePrrocess import *
 
 def getLevelFacesFolder(videoFolder,levelFacesFolder):
     # data_root=r"D:\dataset\driver_dataset\DROZY\DROZY"
@@ -384,7 +419,7 @@ def getLevelFacesFolder(videoFolder,levelFacesFolder):
         videoFullName=os.path.join(videoFolder,videoName)
         getFaceFrames(saveFolder, saveFileName, videoFullName)
 
-def getKSSFacesFolder(videoFolder,levelFacesFolder,KSS_table):
+def getKSSFacesFolder(videoFolder,levelFacesFolder,KSS_table_path):
     # data_root=r"D:\dataset\driver_dataset\DROZY\DROZY"
     # data_dict=FolderTree.getDataPath(data_root=datasetFolder)
     # videoFolder=data_dict['videos_folder']
@@ -392,8 +427,37 @@ def getKSSFacesFolder(videoFolder,levelFacesFolder,KSS_table):
     for videoName in videoFilenameList:
         ID_LEVEL,type=videoName.split(".")
         ID,LEVEL=ID_LEVEL.split('-') 
-        KSS=KSS_table.iloc[int(ID)-1][int(LEVEL)-1]
-        saveFolder=os.path.join(levelFacesFolder,f'{KSS}',f'{ID}')
+        kss_table=pd.read_csv(KSS_table_path,sep=" ",header=None)
+        KSS=kss_table.iloc[int(ID)-1][int(LEVEL)-1]
+        saveFolder=os.path.join(levelFacesFolder,f'{KSS}')
         saveFileName=f'{ID}'
         videoFullName=os.path.join(videoFolder,videoName)
         getFaceFrames(saveFolder, saveFileName, videoFullName)
+
+def getLevelFramesFolder(videoFolder,levelFacesFolder):
+    # data_root=r"D:\dataset\driver_dataset\DROZY\DROZY"
+    # data_dict=FolderTree.getDataPath(data_root=datasetFolder)
+    # videoFolder=data_dict['videos_folder']
+    videoFilenameList=os.listdir(videoFolder)
+    for videoName in videoFilenameList:
+        ID_LEVEL,type=videoName.split(".")
+        ID,LEVEL=ID_LEVEL.split('-')    
+        saveFolder=os.path.join(levelFacesFolder,f'{LEVEL}',f'{ID}')
+        saveFileName=f'{ID}'
+        videoFullName=os.path.join(videoFolder,videoName)
+        getFrames(saveFolder, saveFileName, videoFullName)
+
+def getKSSFramesFolder(videoFolder,levelFacesFolder,KSS_table_path):
+    # data_root=r"D:\dataset\driver_dataset\DROZY\DROZY"
+    # data_dict=FolderTree.getDataPath(data_root=datasetFolder)
+    # videoFolder=data_dict['videos_folder']
+    videoFilenameList=os.listdir(videoFolder)
+    for videoName in videoFilenameList:
+        ID_LEVEL,type=videoName.split(".")
+        ID,LEVEL=ID_LEVEL.split('-') 
+        kss_table=pd.read_csv(KSS_table_path,sep=" ",header=None)
+        KSS=kss_table.iloc[int(ID)-1][int(LEVEL)-1]
+        saveFolder=os.path.join(levelFacesFolder,f'{KSS}')
+        saveFileName=f'{ID}'
+        videoFullName=os.path.join(videoFolder,videoName)
+        getFrames(saveFolder, saveFileName, videoFullName)

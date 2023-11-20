@@ -44,7 +44,34 @@ def getCWTImage(data,t,sfreq,totalscal = 512,sampling_rate=512,wavename = "cgau8
 
     return t,frequencies,log_cwtmatr_uniform
     pass
+##CWT
+def getCWTImage(data,t,sfreq,totalscal = 512,sampling_rate=512,wavename = "cgau8"):
+    '''
+    输入：
+        data:数据序列
+        t:时间轴
+        sampling_rate，sfreq:采样频率
+        totalscal:最大时间尺度
+        wavename：小波函数名
+    返回 :
+        t,时间轴
+        frequencies:频率轴
+        log_cwtmatr_uniform:能量系数
 
+    https://blog.csdn.net/weixin_46713695/article/details/127234673
+    '''
+    fc = pywt.central_frequency(wavename)  # 计算小波函数的中心频率
+    cparam = 2 * fc * totalscal  # 常数c
+    scales = np.arange(8, totalscal/4, 1)  # 为使转换后的频率序列是一等差序列，尺度序列必须取为这一形式（也即小波尺度）
+    [cwtmatr, frequencies] = pywt.cwt(data[0][0], scales, wavename, 1.0/sampling_rate)  # 连续小波变换模块
+    log_cwtmatr=torch.log10(torch.tensor(abs(cwtmatr)))# 取对数结果
+    # 归一化
+    max_l=torch.max(log_cwtmatr.to(torch.float32))
+    min_l=torch.min(log_cwtmatr.to(torch.float32))
+    log_cwtmatr_uniform=(log_cwtmatr-min_l)/(max_l-min_l)#归一化的结果
+
+    return t,frequencies,log_cwtmatr_uniform
+    pass
 
 ##生成可验证数据
 def CreateSignal(random=False,A=1,length=1):
