@@ -75,7 +75,7 @@ class TableControlFifDataset(Dataset):
     #psg_file_name=os.path.join(self.out_path_dict["uniformfilted_path"],file_name)
 
 class TableControlEEGDataset(Dataset):
-    def __init__(self,info_table,psgFileFolderPath,Mintime=5,fix_len=True) -> None:
+    def __init__(self,info_table,psgFileFolderPath,Mintime=5,fix_len=False) -> None:
         super().__init__()
         '''
         与table_control_dataset类不同点是，此类会在读取数据时将数据加载到内存中，存储在temp_file_dict字典中
@@ -89,13 +89,13 @@ class TableControlEEGDataset(Dataset):
         self.temp_file_name=None
         self.TempFileDict={}
         
-        self.InfoTable=self.InfoTable[self.InfoTable['START']>Mintime]
+        # self.InfoTable=self.InfoTable[self.InfoTable['START']>Mintime]
         self.len=len(self.InfoTable)
 
     def __len__(self):
         return self.len
         pass
-    def GetPsgFile(self,fullfilename,start,end,fix_len=True):
+    def GetPsgFile(self,fullfilename,start,end,fix_len=False):
         if not fullfilename in self.TempFileDict:
             if fullfilename.endswith('.fif'):
                 self.PsgFile = mne.io.read_raw_fif(fullfilename,verbose=False)

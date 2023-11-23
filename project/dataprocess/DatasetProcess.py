@@ -265,56 +265,10 @@ def MakePeriodTable(pvt_rt_path,kss_file_path):
     return df
 
 ##
-def getBandPowerTable(kssFilePath,psdFolderPath,N_FFT=15*512,HOP_LEN=5*512):
-
-    WaveDict={
-    'delta':{'LOW':1,"HIGH":3},
-    'theta':{'LOW':4,"HIGH":7},
-    'alpha':{'LOW':8,"HIGH":11},
-    'beta':{'LOW':12,"HIGH":29},
-    'gamma':{'LOW':30,"HIGH":100},
-    }
-    kssTable=pd.read_csv(kssFilePath,sep=' ',header=None)
-    Table=pd.DataFrame()
-    for filename in os.listdir(psdFolderPath):
-    #读数据
-        FiltedEdf=mne.io.read_raw_edf(os.path.join(psdFolderPath,filename))
-        FiltedEdf=FiltedEdf.pick(['Fz', 'Cz', 'C3', 'C4', 'Pz'])
-        #提取文件名中的信息
-        filename,_=filename.split(".")
-        ID,LEVEL=filename.split('-')
-        ID=int(ID)
-        LEVEL=int(LEVEL)
-        #取KSS评分
-        KSS=int(kssTable.iloc[int(ID)-1][int(LEVEL)-1])
-        ##channel_loop
-        PowerDict={}
-        for ch_name in FiltedEdf.info['ch_names']:
-            y=FiltedEdf[ch_name][0][0].T
-            sfft,freq=SequenceFFT(y,512,N_FFT,HOP_LEN)
-            ##band_loop
-            temp=[] 
-            for bandName,band in list(WaveDict.items()):
-                # print(bandName,band)
-                idx_band=np.logical_and(WaveDict[bandName]['LOW']<=freq,freq<=WaveDict[bandName]['HIGH'])
-                if bandName=='gamma':
-                    idx_band=np.logical_and(idx_band, freq != 50)
-                    pass
-                bandPower=np.sum(abs(sfft[idx_band,:])**2*2,axis=0)
-                # print(bandPower.shape)
-                PowerDict[ch_name+'_'+bandName]=bandPower
-                temp.append(bandPower)
-                if  bandName==list(WaveDict.keys())[-1]:
-                    allPower=np.sum(temp,axis=0)              
-        PowerDict["ID"]=np.ones_like(bandPower)*ID  
-        PowerDict["LEVEL"]=np.ones_like(bandPower)*LEVEL
-        PowerDict["KSS"]=np.ones_like(bandPower)*KSS     
-        rawPowerTable=pd.DataFrame(PowerDict)
-        Table=pd.concat([Table,rawPowerTable],ignore_index=True)
-    return Table
-
-
 def getBandPower(DatasetFolderDict,OutputFolderDict,N_FFT=15*512,HOP_LEN=5*512):
+    '''
+    直接生成CSV文件
+    '''
     WaveDict={
     'delta':{'LOW':1,"HIGH":3},
     'theta':{'LOW':4,"HIGH":7},
@@ -369,6 +323,9 @@ def getBandPower(DatasetFolderDict,OutputFolderDict,N_FFT=15*512,HOP_LEN=5*512):
 
 
 def getUniformBandPower(bandPowerTablePath,uniformBandPowerTablePath):
+    '''
+    直接生成CSV文件
+    '''
     rawPowerTable=pd.read_csv(bandPowerTablePath)
     ch_names=['Fz', 'Cz', 'C3', 'C4', 'Pz']
     table=[]
@@ -379,16 +336,75 @@ def getUniformBandPower(bandPowerTablePath,uniformBandPowerTablePath):
         merged_df.to_csv(uniformBandPowerTablePath)
     return merged_df  
 
+def getBandPowerTable(kssFilePath,psdFolderPath,N_FFT=15*512,HOP_LEN=5*512):
+
+    WaveDict={
+    'delta':{'LOW':1,"HIGH":3},
+    'theta':{'LOW':4,"HIGH":7},
+    'alpha':{'LOW':8,"HIGH":11},
+    'beta':{'LOW':12,"HIGH":29},
+    'gamma':{'LOW':30,"HIGH":100},
+    }
+    kssTable=pd.read_csv(kssFilePath,sep=' ',header=None)
+    Table=pd.DataFrame()
+    for filename in os.listdir(psdFolderPath):
+    #读数据
+        FiltedEdf=mne.io.read_raw_edf(os.path.join(psdFolderPath,filename))
+        FiltedEdf=FiltedEdf.pick(['Fz', 'Cz', 'C3', 'C4', 'Pz'])
+        #提取文件名中的信息
+        filename,_=filename.split(".")
+        ID,LEVEL=filename.split('-')
+        ID=int(ID)
+        LEVEL=int(LEVEL)
+        #取KSS评分
+        KSS=int(kssTable.iloc[int(ID)-1][int(LEVEL)-1])
+        ##channel_loop
+        PowerDict={}
+        for ch_name in FiltedEdf.info['ch_names']:
+            y=FiltedEdf[ch_name][0][0].T
+            sfft,freq=SequenceFFT(y,512,N_FFT,HOP_LEN)
+            ##band_loop
+            temp=[] 
+            for bandName,band in list(WaveDict.items()):
+                # print(bandName,band)
+                idx_band=np.logical_and(WaveDict[bandName]['LOW']<=freq,freq<=WaveDict[bandName]['HIGH'])
+                if bandName=='gamma':
+                    idx_band=np.logical_and(idx_band, freq != 50)
+                    pass
+                bandPower=np.sum(abs(sfft[idx_band,:])**2*2,axis=0)
+                # print(bandPower.shape)
+                PowerDict[ch_name+'_'+bandName]=bandPower
+                temp.append(bandPower)
+                if  bandName==list(WaveDict.keys())[-1]:
+                    allPower=np.sum(temp,axis=0)              
+        PowerDict["ID"]=np.ones_like(bandPower)*ID  
+        PowerDict["LEVEL"]=np.ones_like(bandPower)*LEVEL
+        PowerDict["KSS"]=np.ones_like(bandPower)*KSS     
+        rawPowerTable=pd.DataFrame(PowerDict)
+        Table=pd.concat([Table,rawPowerTable],ignore_index=True)
+    return Table
+
 def getUniformBandPowerTable(bandPowerTable):
     rawPowerTable=bandPowerTable
     ch_names=['Fz', 'Cz', 'C3', 'C4', 'Pz']
     table=[]
+    sumpower=rawPowerTable.drop(columns=['LEVEL','ID','KSS']).sum(axis=1)
+    table=[]
     for ch_name in  ch_names:
+        channel_per=rawPowerTable.filter(like=ch_name).sum(axis=1)/sumpower
+        channel_per.name=ch_name
+        table.append(channel_per)
         table.append(rawPowerTable.filter(like=ch_name).div(rawPowerTable.filter(like=ch_name).sum(axis=1),axis=0))
         merged_df = pd.concat(table, axis=1)
         merged_df = pd.concat((merged_df,rawPowerTable[["ID","LEVEL","KSS"]]),axis=1)
-        
     return merged_df  
+
+def getUniformBandPowerTableDirect(kssFilePath,psdFolderPath,N_FFT=15*512,HOP_LEN=5*512):
+    bandPower=getBandPowerTable(kssFilePath,psdFolderPath,N_FFT=15*512,HOP_LEN=5*512)
+    uniformBandPower=getUniformBandPowerTable(bandPower)
+    return uniformBandPower
+
+
 def getSFFT(psgFolder,outputFolder,N_FFT=15*512,HOP_LEN=5*512):
 
     PsgPath=psgFolder
@@ -414,7 +430,7 @@ def getLevelFacesFolder(videoFolder,levelFacesFolder):
     for videoName in videoFilenameList:
         ID_LEVEL,type=videoName.split(".")
         ID,LEVEL=ID_LEVEL.split('-')    
-        saveFolder=os.path.join(levelFacesFolder,f'{LEVEL}',f'{ID}')
+        saveFolder=os.path.join(levelFacesFolder,f'{ID}',f'{LEVEL}')
         saveFileName=f'{ID}'
         videoFullName=os.path.join(videoFolder,videoName)
         getFaceFrames(saveFolder, saveFileName, videoFullName)

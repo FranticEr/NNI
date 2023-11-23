@@ -75,12 +75,11 @@ class simple_cnn1d(nn.Module):
         #print(self.list_down)
         self.num_classes=num_classes
         #print(num_classes)
-
         self.input_layer=Input_Layer(in_channels=input_channels,out_channels=list_down[0])
         for i in range(len(self.list_down)-1):
             #print(i)
             setattr(self,f'down_blk{i}',Down_Sample_Layer(self.list_down[i],self.list_down[i+1]))
-        self.classfier_layer=Classfier_Layer(self.list_down[-2],self.num_classes,num_hidden)
+        self.classfier_layer=Classfier_Layer(self.list_down[-1],self.num_classes,num_hidden)
        
     def __call__(self, x,*args: Any, **kwds: Any) -> Any:
         x=self.input_layer(x)
