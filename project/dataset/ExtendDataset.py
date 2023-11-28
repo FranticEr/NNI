@@ -15,6 +15,17 @@ class KSSEEGEndToEndDataset(TableControlEEGDataset):
         self.DataDict= super().__getitem__(index)
         return self.DataDict['data'],self.DataDict['KSS']
 ##EEG Feature Dataset
+class CWTDataset(TableControlEEGDataset):
+    def __getitem__(self, index):
+        self.DataDict= super().__getitem__(index)
+        self.CWTlist=[]
+        t=self.DataDict['time']
+        for channel in self.DataDict['data']:
+            t,frequencies,log_cwtmatr_uniform=getCWTImage(channel,t)
+            abscwt=abs(log_cwtmatr_uniform)
+            self.CWTlist.append(abscwt)
+        return {'CWT':self.CWTlist,'LEVEL':self.DataDict['LEVEL'],'KSS':self.DataDict['KSS'],'time':self.DataDict['time'],'Freq':frequencies}
+
 class SFFTDataset(TableControlEEGDataset):
     def __getitem__(self, index):
         self.DataDict= super().__getitem__(index)

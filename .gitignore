@@ -20,4 +20,6 @@ notebook/FaceDetect/lightning_logs/
 notebook/TraineSummery/EEG/EndToEnd/TESST_LOG_PATH/
 __pycache__/
 *.pyc
+*.csv
+lightning_logs/
 

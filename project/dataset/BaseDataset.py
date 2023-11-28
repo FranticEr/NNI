@@ -149,13 +149,14 @@ class TableControlECGDataset(Dataset):
         self.temp_file_name=None
         self.TempFileDict={}
         
-        self.InfoTable=self.InfoTable[self.InfoTable['START']>Mintime]
+        # self.InfoTable=self.InfoTable[self.InfoTable['START']>Mintime]
         self.len=len(self.InfoTable)
 
     def __len__(self):
         return self.len
         pass
     def GetPsgFile(self,fullfilename,start,end,fix_len=True):
+        # print(start,end)
         if not fullfilename in self.TempFileDict:
             if fullfilename.endswith('.fif'):
                 self.PsgFile = mne.io.read_raw_fif(fullfilename,verbose=False)
@@ -190,6 +191,6 @@ class TableControlECGDataset(Dataset):
         else:
             fullfilename=edf_fullfilename
 
-        data,time=self.GetPsgFile(fullfilename,START,END,fix_len=True)
+        data,time=self.GetPsgFile(fullfilename,START,END,fix_len=self.fix_len)
         index=['ECG']
         return {"data":data,"time":time,"index":index,"KSS":KSS,"LEVEL":LEVEL}

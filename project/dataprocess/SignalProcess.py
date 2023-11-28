@@ -2,12 +2,50 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import pywt
-
+import mne
 
 
 
 ##CWT
-def getCWTImage(data,t,sfreq,totalscal = 512,sampling_rate=512,wavename = "cgau8"):
+# def getCWTImage(data,t,sfreq,totalscal = 512,sampling_rate=512,wavename = "cgau8"):
+#     '''
+#     输入：
+#         data:数据序列
+#         t:时间轴
+#         sampling_rate，sfreq:采样频率
+#         totalscal:最大时间尺度
+#         wavename：小波函数名
+#     返回 :
+#         t,时间轴
+#         frequencies:频率轴
+#         log_cwtmatr_uniform:能量系数
+
+#     https://blog.csdn.net/weixin_46713695/article/details/127234673
+#     '''
+#     #时间
+#     #print(data)
+#     # wavename = "cgau8"
+#     #wavename ="mexh"
+#     # totalscal = 512   # totalscal是对信号进行小波变换时所用尺度序列的长度(通常需要预先设定好)
+#     # sampling_rate=512
+
+#     fc = pywt.central_frequency(wavename)  # 计算小波函数的中心频率
+#     cparam = 2 * fc * totalscal  # 常数c
+#     scales = np.arange(8, totalscal/4, 1)  # 为使转换后的频率序列是一等差序列，尺度序列必须取为这一形式（也即小波尺度）
+#     [cwtmatr, frequencies] = pywt.cwt(data[0][0], scales, wavename, 1.0/sampling_rate)  # 连续小波变换模块
+#     log_cwtmatr=torch.log10(torch.tensor(abs(cwtmatr)))# 取对数结果
+
+#     # 归一化
+#     max_l=torch.max(log_cwtmatr.to(torch.float32))
+#     min_l=torch.min(log_cwtmatr.to(torch.float32))
+#     log_cwtmatr_uniform=(log_cwtmatr-min_l)/(max_l-min_l)#归一化的结果
+
+#     #uni_log_dataframe=pd.DataFrame(log_cwtmatr_uniform,columns=t,index=frequencies)
+
+#     return t,frequencies,log_cwtmatr_uniform
+#     pass
+##CWT
+def getCWTImage(data,t,totalscal = 512,sampling_rate=512,wavename = "cgau8",highest_frequency=40,resolution_ratio=0.2):
     '''
     输入：
         data:数据序列
@@ -22,48 +60,12 @@ def getCWTImage(data,t,sfreq,totalscal = 512,sampling_rate=512,wavename = "cgau8
 
     https://blog.csdn.net/weixin_46713695/article/details/127234673
     '''
-    #时间
-    #print(data)
-    # wavename = "cgau8"
-    #wavename ="mexh"
-    # totalscal = 512   # totalscal是对信号进行小波变换时所用尺度序列的长度(通常需要预先设定好)
-    # sampling_rate=512
-
     fc = pywt.central_frequency(wavename)  # 计算小波函数的中心频率
-    cparam = 2 * fc * totalscal  # 常数c
-    scales = np.arange(8, totalscal/4, 1)  # 为使转换后的频率序列是一等差序列，尺度序列必须取为这一形式（也即小波尺度）
-    [cwtmatr, frequencies] = pywt.cwt(data[0][0], scales, wavename, 1.0/sampling_rate)  # 连续小波变换模块
-    log_cwtmatr=torch.log10(torch.tensor(abs(cwtmatr)))# 取对数结果
-
-    # 归一化
-    max_l=torch.max(log_cwtmatr.to(torch.float32))
-    min_l=torch.min(log_cwtmatr.to(torch.float32))
-    log_cwtmatr_uniform=(log_cwtmatr-min_l)/(max_l-min_l)#归一化的结果
-
-    #uni_log_dataframe=pd.DataFrame(log_cwtmatr_uniform,columns=t,index=frequencies)
-
-    return t,frequencies,log_cwtmatr_uniform
-    pass
-##CWT
-def getCWTImage(data,t,sfreq,totalscal = 512,sampling_rate=512,wavename = "cgau8"):
-    '''
-    输入：
-        data:数据序列
-        t:时间轴
-        sampling_rate，sfreq:采样频率
-        totalscal:最大时间尺度
-        wavename：小波函数名
-    返回 :
-        t,时间轴
-        frequencies:频率轴
-        log_cwtmatr_uniform:能量系数
-
-    https://blog.csdn.net/weixin_46713695/article/details/127234673
-    '''
-    fc = pywt.central_frequency(wavename)  # 计算小波函数的中心频率
-    cparam = 2 * fc * totalscal  # 常数c
-    scales = np.arange(8, totalscal/4, 1)  # 为使转换后的频率序列是一等差序列，尺度序列必须取为这一形式（也即小波尺度）
-    [cwtmatr, frequencies] = pywt.cwt(data[0][0], scales, wavename, 1.0/sampling_rate)  # 连续小波变换模块
+    cparam = 2 * fc * totalscal  # 常数c\
+    highest_frequency=2*highest_frequency
+    resolution_ratio=-1*(resolution_ratio*2)
+    scales=cparam/np.arange(highest_frequency, 2, resolution_ratio)  # 为使转换后的频率序列是一等差序列，尺度序列必须取为这一形式（也即小波尺度）
+    [cwtmatr, frequencies] = pywt.cwt(data, scales, wavename, 1.0/sampling_rate)  # 连续小波变换模块
     log_cwtmatr=torch.log10(torch.tensor(abs(cwtmatr)))# 取对数结果
     # 归一化
     max_l=torch.max(log_cwtmatr.to(torch.float32))
@@ -73,6 +75,14 @@ def getCWTImage(data,t,sfreq,totalscal = 512,sampling_rate=512,wavename = "cgau8
     return t,frequencies,log_cwtmatr_uniform
     pass
 
+def getCWTAnalyze(data,sfreq=512,l_freq=0.01,h_freq=6,ratio=0.1,wavename="cgau8",totalscal=512):
+    fc = pywt.central_frequency(wavename)  # 计算小波函数的中心频率
+    cparam = 2 * fc * totalscal  # 常数c\
+    highest_frequency=2*h_freq
+    resolution_ratio=-1*(ratio*2)
+    scales=cparam/np.arange(highest_frequency, l_freq, resolution_ratio)  # 为使转换后的频率序列是一等差序列，尺度序列必须取为这一形式（也即小波尺度）
+    [cwtmatr, frequencies] = pywt.cwt(data, scales, wavename, 1.0/sfreq)  # 连续小波变换模块
+    return cwtmatr, frequencies
 ##生成可验证数据
 def CreateSignal(random=False,A=1,length=1):
     '''
@@ -138,7 +148,7 @@ def PlotAFR(fft_result,freq):
     plt.xlabel("freq")
     plt.ylabel("dB")
 
-def BandPower(fft_result,freq,min,max):
+def BandPower(fft_result,freq,min,max,sfreq=512):
     '''
     计算双边序列指定频带能量
     输入：
@@ -151,12 +161,20 @@ def BandPower(fft_result,freq,min,max):
     算法说明：
         际的能量是双边的能量，而如果直接将单边的幅值*2的话，所得能量是实际能量的二倍，所以计算了单边频谱能量*2
     '''
-    dw=freq[1]-freq[0]
+    dw=abs(freq[1]-freq[0])
     idx_band=np.logical_and(min<=freq,freq<=max)
     #计算了单边的能量函数，而实际的能量是双边的能量，而如果直接将单边的幅值*2的话，所得能量是实际能量的二倍
-    bandpower=sum(abs(fft_result[idx_band])**2*2)*dw
-    
+    bandpower=np.sum(abs(fft_result[idx_band])**2*2*dw,axis=0)*(len(fft_result)/sfreq)**2
     return bandpower
+
+def SignalPowerBandTime(signal,sfreq,l_freq=0,h_freq=6):
+    signal=mne.filter.filter_data(signal,sfreq=512,l_freq=l_freq,h_freq=h_freq)
+    power=sum(abs(signal)**2)/sfreq
+    return power
+
+def SignalPower(signal,sfreq):
+    power=sum(abs(signal)**2)/sfreq
+    return power
 
 def SignalBandPower(y,sfreq,min,max):
     '''
